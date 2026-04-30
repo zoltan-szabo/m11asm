@@ -33,6 +33,9 @@ public enum Token: Sendable, Equatable {
     case doubleEquals   // ==  permanent equate
     case dot            // .   standalone location counter
 
+    // MARK: - String data (injected by the lexer for .ASCII / .ASCIZ)
+    case stringLiteral([UInt8])
+
     // MARK: - Structure
     case newline
     case eof

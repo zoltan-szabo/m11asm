@@ -1,117 +1,160 @@
-// CodeGen.swift — Pass 2: evaluate expressions and emit [UInt16]
+// CodeGen.swift — Pass 2: evaluate expressions and emit bytes
 
 // MARK: - Entry point
 
-/// Encode every statement in `program` into a flat word array.
-/// Words are in instruction-stream order starting at `program.origin`.
-/// All symbol references must be resolved; remaining errors go to `diagnostics`.
+/// Encode every item in `program` into a flat byte array (little-endian).
+/// Bytes are in address order starting at `program.origin`.
 public func assemble(program: ParsedProgram,
-                     diagnostics: inout DiagnosticEngine) -> [UInt16] {
-    var words: [UInt16] = []
-    for stmt in program.statements {
+                     diagnostics: inout DiagnosticEngine) -> [UInt8] {
+    var bytes: [UInt8] = []
+    for item in program.items {
         do {
-            try emit(stmt: stmt, symbols: program.symbols, into: &words)
+            switch item {
+            case .instruction(let stmt):
+                try emitInstruction(stmt: stmt, symbols: program.symbols, into: &bytes)
+            case .directive(let dir):
+                try emitDirective(dir: dir, symbols: program.symbols, into: &bytes)
+            }
         } catch let e as CodeGenError {
-            diagnostics.error(at: stmt.location, e.message)
+            diagnostics.error(at: e.location, e.message)
         } catch {
-            diagnostics.error(at: stmt.location, error.localizedDescription)
+            let loc: SourceLocation
+            if case .instruction(let s) = item { loc = s.location }
+            else if case .directive(let d) = item { loc = d.location }
+            else { loc = .unknown }
+            diagnostics.error(at: loc, error.localizedDescription)
         }
     }
-    return words
+    return bytes
 }
 
 // MARK: - Internal error type
 
 private struct CodeGenError: Error {
-    let message: String
+    let location: SourceLocation
+    let message:  String
 }
 
-// MARK: - Emit one statement
+// MARK: - Instruction emitter
 
-private func emit(stmt: Statement, symbols: SymbolTable, into words: inout [UInt16]) throws {
+private func emitInstruction(stmt: Statement, symbols: SymbolTable,
+                              into bytes: inout [UInt8]) throws {
     let base = stmt.descriptor.base
     let addr = stmt.address
+
+    func evalExpr(_ expr: Expression, lc: UInt16 = addr) throws -> UInt16 {
+        try eval(expr, symbols: symbols, lc: lc, at: stmt.location)
+    }
 
     switch stmt.operands {
 
     case .none:
-        words.append(base)
+        emitWord(base, into: &bytes)
 
     case .single(let op):
         let enc = op.encode(extensionWordAddress: addr &+ 2)
-        words.append(base | enc.field)
-        if let x = enc.extensionExpr {
-            words.append(try eval(x, symbols: symbols, lc: addr, at: stmt.location))
-        }
+        emitWord(base | enc.field, into: &bytes)
+        if let x = enc.extensionExpr { emitWord(try evalExpr(x), into: &bytes) }
 
     case .double(let src, let dst):
         let srcEnc = src.encode(extensionWordAddress: addr &+ 2)
         let dstOff = UInt16(src.hasExtensionWord ? 2 : 0)
         let dstEnc = dst.encode(extensionWordAddress: addr &+ 2 &+ dstOff)
-        words.append(base | (srcEnc.field << 6) | dstEnc.field)
-        if let x = srcEnc.extensionExpr {
-            words.append(try eval(x, symbols: symbols, lc: addr, at: stmt.location))
-        }
-        if let x = dstEnc.extensionExpr {
-            words.append(try eval(x, symbols: symbols, lc: addr, at: stmt.location))
-        }
+        emitWord(base | (srcEnc.field << 6) | dstEnc.field, into: &bytes)
+        if let x = srcEnc.extensionExpr { emitWord(try evalExpr(x), into: &bytes) }
+        if let x = dstEnc.extensionExpr { emitWord(try evalExpr(x), into: &bytes) }
 
     case .branch(let target):
-        let tgt = try eval(target, symbols: symbols, lc: addr, at: stmt.location)
-        let pc  = addr &+ 2
-        // Byte offset = (target - pc) must be even and fit in [-256, 254].
-        let raw = Int(tgt) - Int(pc)
+        let tgt    = try evalExpr(target)
+        let pc     = addr &+ 2
+        let raw    = Int(tgt) - Int(pc)
         guard raw & 1 == 0 else {
-            throw CodeGenError(message: "branch target is not word-aligned")
+            throw CodeGenError(location: stmt.location, message: "branch target is not word-aligned")
         }
-        let wordOff = raw / 2
-        guard wordOff >= -128 && wordOff <= 127 else {
-            throw CodeGenError(message: "branch target out of range (\(wordOff) words from PC)")
+        let off = raw / 2
+        guard off >= -128 && off <= 127 else {
+            throw CodeGenError(location: stmt.location,
+                               message: "branch target out of range (\(off) words from PC)")
         }
-        words.append(base | (UInt16(bitPattern: Int16(wordOff)) & 0xFF))
+        emitWord(base | (UInt16(bitPattern: Int16(off)) & 0xFF), into: &bytes)
 
     case .regOnly(let reg):
-        words.append(base | UInt16(reg))
+        emitWord(base | UInt16(reg), into: &bytes)
 
     case .regOperand(let reg, let op):
         let enc = op.encode(extensionWordAddress: addr &+ 2)
-        words.append(base | (UInt16(reg) << 6) | enc.field)
-        if let x = enc.extensionExpr {
-            words.append(try eval(x, symbols: symbols, lc: addr, at: stmt.location))
-        }
+        emitWord(base | (UInt16(reg) << 6) | enc.field, into: &bytes)
+        if let x = enc.extensionExpr { emitWord(try evalExpr(x), into: &bytes) }
 
     case .regExpr(let reg, let target):
-        // SOB: backward-only branch, offset in words (1-63).
-        let tgt = try eval(target, symbols: symbols, lc: addr, at: stmt.location)
-        let pc  = addr &+ 2
+        let tgt  = try evalExpr(target)
+        let pc   = addr &+ 2
         let back = Int(pc) - Int(tgt)
         guard back > 0 && back & 1 == 0 else {
-            throw CodeGenError(message: "SOB target must be a backward word-aligned address")
+            throw CodeGenError(location: stmt.location,
+                               message: "SOB target must be a backward word-aligned address")
         }
         let off6 = back / 2
         guard off6 <= 63 else {
-            throw CodeGenError(message: "SOB offset \(off6) exceeds 63-word limit")
+            throw CodeGenError(location: stmt.location,
+                               message: "SOB offset \(off6) exceeds 63-word limit")
         }
-        words.append(base | (UInt16(reg) << 6) | UInt16(off6))
+        emitWord(base | (UInt16(reg) << 6) | UInt16(off6), into: &bytes)
 
     case .trapN(let expr):
-        words.append(base | (try eval(expr, symbols: symbols, lc: addr, at: stmt.location)))
+        emitWord(base | (try evalExpr(expr)), into: &bytes)
     }
 }
 
-// MARK: - Expression evaluator shim
+// MARK: - Directive emitter
 
-private func eval(_ expr: Expression,
-                  symbols: SymbolTable,
-                  lc: UInt16,
-                  at loc: SourceLocation) throws -> UInt16 {
+private func emitDirective(dir: Directive, symbols: SymbolTable,
+                            into bytes: inout [UInt8]) throws {
+    switch dir.kind {
+
+    case .word(let exprs):
+        for expr in exprs {
+            emitWord(try eval(expr, symbols: symbols, lc: dir.address, at: dir.location),
+                     into: &bytes)
+        }
+
+    case .byte(let exprs):
+        for expr in exprs {
+            let val = try eval(expr, symbols: symbols, lc: dir.address, at: dir.location)
+            bytes.append(UInt8(val & 0xFF))
+        }
+
+    case .blkw(let count):
+        for _ in 0..<count { emitWord(0, into: &bytes) }
+
+    case .blkb(let count):
+        for _ in 0..<count { bytes.append(0) }
+
+    case .ascii(let rawBytes, let nul):
+        bytes.append(contentsOf: rawBytes)
+        if nul { bytes.append(0) }
+
+    case .even(let padded):
+        if padded { bytes.append(0) }
+    }
+}
+
+// MARK: - Helpers
+
+private func emitWord(_ word: UInt16, into bytes: inout [UInt8]) {
+    bytes.append(UInt8(word & 0xFF))
+    bytes.append(UInt8(word >> 8))
+}
+
+private func eval(_ expr: Expression, symbols: SymbolTable,
+                  lc: UInt16, at loc: SourceLocation) throws -> UInt16 {
     do {
         return try expr.evaluate(symbols: symbols, locationCounter: lc)
     } catch ExpressionError.undefinedSymbol(let name) {
-        throw CodeGenError(message: "undefined symbol '\(name)'")
+        throw CodeGenError(location: loc, message: "undefined symbol '\(name)'")
     } catch ExpressionError.divisionByZero {
-        throw CodeGenError(message: "division by zero in expression")
+        throw CodeGenError(location: loc, message: "division by zero in expression")
     } catch {
-        throw CodeGenError(message: error.localizedDescription)
+        throw CodeGenError(location: loc, message: error.localizedDescription)
     }
 }

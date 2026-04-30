@@ -18,15 +18,22 @@ private func parseSource(_ src: String, origin: UInt16 = 0) throws -> ParsedProg
     return prog
 }
 
-private func assemble(_ src: String, origin: UInt16 = 0) throws -> [UInt16] {
+private func assembleBytes(_ src: String, origin: UInt16 = 0) throws -> [UInt8] {
     let prog = try parseSource(src, origin: origin)
     var diag = DiagnosticEngine()
-    let words = assemble(program: prog, diagnostics: &diag)
+    let bytes = assemble(program: prog, diagnostics: &diag)
     if diag.hasErrors {
         throw ParseError(location: .unknown,
                          message: diag.diagnostics.map(\.description).joined(separator: "; "))
     }
-    return words
+    return bytes
+}
+
+private func assemble(_ src: String, origin: UInt16 = 0) throws -> [UInt16] {
+    let bytes = try assembleBytes(src, origin: origin)
+    return stride(from: 0, to: bytes.count, by: 2).map { i in
+        UInt16(bytes[i]) | (i + 1 < bytes.count ? UInt16(bytes[i + 1]) << 8 : 0)
+    }
 }
 
 // MARK: - Parser tests
