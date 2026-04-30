@@ -21,14 +21,33 @@ Reference docs (in J11Terminal repo): `../J11Terminal/docs/`
 
 ```
 Sources/
-  m11asm/         — executable entry point (main.swift, CLI argument parsing)
+  m11asm/         — executable entry point (main.swift — CLI, argument parsing)
   m11asmCore/     — library: all assembler logic (importable by J11Terminal)
+    Token.swift           — Token enum (symbol, integer, stringLiteral, punctuation, …)
+    Lexer.swift           — tokeniser; injects .stringLiteral after .ASCII/.ASCIZ
+    SourceLocation.swift  — file/line/column, Located<T> wrapper
+    Expression.swift      — Expression AST + evaluate(symbols:locationCounter:)
+    ExpressionParser.swift — recursive-descent expression parser (TokenStream)
+    SymbolTable.swift     — symbol storage and lookup
+    Diagnostics.swift     — DiagnosticEngine (errors / warnings)
+    InstructionTable.swift — opcode lookup, InstructionDescriptor, all formats
+    OperandMode.swift     — OperandMode enum, 6-bit field + extension-word encoding
+    Parser.swift          — Pass 1: symbol table, ParsedProgram, .IF/.ENDC, directives
+    CodeGen.swift         — Pass 2: byte emission (little-endian [UInt8] output)
+    MacroExpander.swift   — Pre-pass: .MACRO/.ENDM, .REPT, .IRP, \PARAM, \@ local labels
+    Output.swift          — writeBinary() and writeOctalLoad() file writers
+    m11asmCore.swift      — public re-exports
 Tests/
-  m11asmTests/    — tests against m11asmCore
+  m11asmTests/
+    Phase1Tests.swift     — Lexer, Expression, SymbolTable (66 tests)
+    Phase2Tests.swift     — InstructionTable, OperandMode encoder (136 tests)
+    Phase3Tests.swift     — Parser + CodeGen, two-pass assembly (183 tests)
+    Phase4Tests.swift     — directives, equates, .IF conditional (231 tests)
+    Phase5Tests.swift     — macro expansion, .REPT, .IRP (257 tests total)
 ```
 
-The split allows the test target and (eventually) J11Terminal to import `m11asmCore`
-directly without going through the executable.
+`Package.swift` declares two products: `m11asm` (executable) and `m11asmCore` (library).
+The test target imports `m11asmCore` directly. J11Terminal can do the same.
 
 ---
 
@@ -53,31 +72,30 @@ swift test
 
 ---
 
-## CLI interface (planned)
+## CLI interface
 
 ```
 USAGE: m11asm [options] <input.mac>
 
 OPTIONS:
-  -o <file>        Output file (default: input basename + .oct)
+  -o <file>        Output file (default: input basename + .oct or .bin)
   -f bin|oct       Output format: raw binary or octal load file (default: oct)
   -b <addr>        Base (load) address in octal (default: 001000)
-  --list           Print assembly listing to stdout
-  --symbols        Print symbol table after assembly
-  --strict         Treat warnings as errors
+  --symbols        Print symbol table to stdout after assembly
+  -h, --help       Show help
 ```
 
 Output formats:
-- `oct` — octal load file (`address<TAB>value` pairs), compatible with J11Terminal Octal Upload
+- `oct` — octal load file (`@address` header + one word per line in octal), for J11Terminal Octal Upload
 - `bin` — flat raw binary at the specified base address
 
-Exit codes: 0 = success, 1 = assembly error, 2 = argument error.
+Exit codes: 0 = success, 1 = assembly or I/O error, 2 = argument error.
 
 ---
 
 ## GitHub
 
-Repository: (to be created — `github.com/zoltan-szabo/m11asm` or similar)
+Repository: `github.com/zoltan-szabo/m11asm`
 
 ---
 
@@ -85,4 +103,13 @@ Repository: (to be created — `github.com/zoltan-szabo/m11asm` or similar)
 
 | Commit | What was done |
 |--------|---------------|
-| *(initial)* | Project scaffolding: Swift package with `m11asm` executable + `m11asmCore` library, git init, CLAUDE.md |
+| `86e1843` | Project scaffolding: Swift package with `m11asm` executable + `m11asmCore` library, git init, CLAUDE.md |
+| `8285f87` | Phase 1 — Lexer (octal default, `^D`/`^B`/`^X` prefixes, `.ASCII`/`.ASCIZ` string injection), Expression AST + recursive-descent evaluator, SymbolTable, DiagnosticEngine; 66 tests |
+| `be499de` | Phase 2 — InstructionTable (all PDP-11 formats + DCJ-11 extensions), OperandMode 12-case encoder (6-bit field + optional extension word), ExpressionParser (TokenStream), OperandParser; 136 tests |
+| `0885617` | Phase 3 — two-pass assembler: Parser (pass 1, symbol table, statement IR), CodeGen (pass 2, byte-level `[UInt8]` output, little-endian); all instruction formats, all addressing modes, branch/SOB range checks; 183 tests |
+| `fe00f06` | Phase 4 — directives (`.WORD` `.BYTE` `.BLKW` `.BLKB` `.ASCII` `.ASCIZ` `.EVEN`), equates (`sym = expr`, `sym == expr`), location counter assignment (`. = expr`), `.IF`/`.ENDC` conditional assembly (nested, EQ/NE/GT/LT/DF/NDF); byte-level output; 231 tests |
+| `64c26d3` | Phase 5 — pre-pass `MacroExpander`: `.MACRO`/`.ENDM` definition and invocation, `\PARAM` substitution, `\@` local-label suffix (`__M0001`…), `SYM\@` concatenation, `.REPT n`, `.IRP sym, <list>`, depth-limited recursion (64 levels); 257 tests |
+| `80c18b1` | Phase 6+7 — `Output.swift` (`writeBinary`, `writeOctalLoad`); `main.swift` CLI (`-f bin\|oct`, `-b addr`, `-o file`, `--symbols`, `-h`); compiler-style error messages; exit codes |
+| `aec73e1` | `README.md` — installation, quick start, CLI reference, language support, full instruction set, "not supported" section |
+| `7fa31de` | `LICENSE` — MIT |
+| `v0.1.0`  | Tagged release; GitHub Release created; universal macOS binary (arm64 + x86_64) attached; Homebrew tap published at `github.com/zoltan-szabo/homebrew-m11asm` |
