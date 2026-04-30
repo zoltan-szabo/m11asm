@@ -68,6 +68,82 @@ m11asm -b 1000 blink.mac && cat blink.oct
 000000
 ```
 
+### Example — Hello World! via the DCJ-11 console UART
+
+The DCJ-11's console UART uses two memory-mapped registers:
+
+| Register | Address | Purpose |
+|----------|---------|---------|
+| `XCSR` | `177564` | Transmitter status — bit 7 set when ready to accept a byte |
+| `XBUF` | `177566` | Transmitter data buffer — write a byte here to send it |
+
+This is the same UART that ODT itself uses. Output appears in J11Terminal's Terminal window.
+
+```asm
+; hello_world.mac — "Hello World!" via the DCJ-11 console UART
+;
+; Assemble:  m11asm -b 1000 hello_world.mac
+; Load:      paste hello_world.oct into J11Terminal Octal Upload
+; Run:       from ODT prompt:  1000G
+
+        .= 001000
+
+XCSR    = 177564        ; console transmitter status — bit 7: ready
+XBUF    = 177566        ; console transmitter data buffer
+
+START:  MOV  #MSG, R0   ; R0 → message string
+LOOP:   MOVB (R0)+, R1  ; next byte → R1; advance pointer
+        BEQ  DONE       ; NUL terminator — stop
+WAIT:   TSTB @#XCSR     ; poll transmitter ready (bit 7)
+        BPL  WAIT
+        MOVB R1, @#XBUF ; write character to UART
+        BR   LOOP
+DONE:   HALT
+
+MSG:    .ASCII /Hello World!/
+        .BYTE  15, 12, 0 ; CR, LF, NUL
+        .EVEN
+```
+
+```bash
+m11asm -b 1000 --symbols hello_world.mac && cat hello_world.oct
+```
+
+```
+Symbol table:
+  DONE                    001024
+  LOOP                    001004
+  MSG                     001026
+  START                   001000
+  WAIT                    001010
+  XBUF                    177566
+  XCSR                    177564
+19 words → hello_world.oct
+@001000
+012700
+001026
+112001
+001406
+105737
+177564
+100375
+110137
+177566
+000770
+000000
+062510
+066154
+020157
+067527
+066162
+020544
+005015
+000000
+```
+
+After loading and typing `1000G` at the ODT prompt, `Hello World!` followed by CR+LF
+appears in the Terminal window and the processor halts. ODT resumes control.
+
 ---
 
 ## CLI reference
