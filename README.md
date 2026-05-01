@@ -55,7 +55,7 @@ LOOP:   COM @#LEDREG        ; complement LED register
 ```
 
 ```bash
-m11asm -b 1000 blink.mac && cat blink.oct
+m11asm -b 1000 Examples/blink/blink.mac && cat blink.oct
 ```
 
 ```
@@ -107,7 +107,7 @@ MSG:    .BYTE  15, 12, 15, 12  ; two CR+LF (blank line before output)
 ```
 
 ```bash
-m11asm -b 1000 --symbols hello_world.mac && cat hello_world.oct
+m11asm -b 1000 --symbols Examples/hello_world/hello_world.mac && cat hello_world.oct
 ```
 
 ```

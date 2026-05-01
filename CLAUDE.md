@@ -20,6 +20,11 @@ Reference docs (in J11Terminal repo): `../J11Terminal/docs/`
 ## Project structure
 
 ```
+Examples/
+  blink/
+    blink.mac     — LED toggle loop (counted SOB, COM @#LEDREG)
+  hello_world/
+    hello_world.mac — "Hello World!" via DCJ-11 console UART (XCSR/XBUF polling)
 Sources/
   m11asm/         — executable entry point (main.swift — CLI, argument parsing)
   m11asmCore/     — library: all assembler logic (importable by J11Terminal)
