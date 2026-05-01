@@ -119,4 +119,5 @@ Repository: `github.com/zoltan-szabo/m11asm`
 | `7fa31de` | `LICENSE` — MIT |
 | `v0.1.0`  | Tagged release; GitHub Release created; universal macOS binary (arm64 + x86_64) attached; Homebrew tap published at `github.com/zoltan-szabo/homebrew-m11asm` |
 | `f859c31` | `README.md` hello_world.mac — added two leading CR+LF pairs before the message so output appears on its own line after `@1000G`; 19 words → 21 words |
+| `2001bf8` | Phase 9 — `Disassembler.swift`: `decodeTable` (built from `InstructionTable`, all formats + addressing modes), `disassemble()`, `parseODTInput()`; 46 tests in `DisassemblerTests.swift` |
 | `a3a4046` | Phase 8 prep — declare `m11asmCore` library product in `Package.swift`; add `octalLoadString(bytes:origin:) -> String` to `Output.swift`; refactor `writeOctalLoad` to call it |
