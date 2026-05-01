@@ -18,8 +18,8 @@ public struct DisassembledInstruction: Sendable {
         let w2 = words.count > 2 ? String(format: "%06o", words[2]) : "      "
         let mn = mnemonic.padding(toLength: 6, withPad: " ", startingAt: 0)
         return operands.isEmpty
-            ? "\(a)  \(w0)  \(w1)  \(w2)  \(mn)"
-            : "\(a)  \(w0)  \(w1)  \(w2)  \(mn)  \(operands)"
+            ? "\(a)/ \(w0)  \(w1)  \(w2)  \(mn)"
+            : "\(a)/ \(w0)  \(w1)  \(w2)  \(mn)  \(operands)"
     }
 }
 
