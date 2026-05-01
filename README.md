@@ -3,7 +3,7 @@
 A command-line MACRO-11 assembler for the DCJ-11 (PDP-11) architecture, written in Swift.
 Produces raw binary or octal load files suitable for loading into a PDP-11 system via ODT
 or an absolute loader. Designed for bare-metal DCJ-11 development and for integration with
-[J11Terminal](https://github.com/zoltan-szabo/J11Terminal).
+[J11Terminal](https://github.com/zoltan-szabo/j11-terminal).
 
 ---
 
