@@ -113,4 +113,4 @@ Repository: `github.com/zoltan-szabo/m11asm`
 | `aec73e1` | `README.md` — installation, quick start, CLI reference, language support, full instruction set, "not supported" section |
 | `7fa31de` | `LICENSE` — MIT |
 | `v0.1.0`  | Tagged release; GitHub Release created; universal macOS binary (arm64 + x86_64) attached; Homebrew tap published at `github.com/zoltan-szabo/homebrew-m11asm` |
-| pending   | `README.md` hello_world.mac — added two leading CR+LF pairs before the message so output appears on its own line after `@1000G`; 19 words → 21 words |
+| `f859c31` | `README.md` hello_world.mac — added two leading CR+LF pairs before the message so output appears on its own line after `@1000G`; 19 words → 21 words |
