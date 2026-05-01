@@ -1,0 +1,24 @@
+; hello_world.mac — "Hello World!" via the DCJ-11 console UART
+;
+; Assemble:  m11asm -b 1000 hello_world.mac
+; Load:      paste hello_world.oct into J11Terminal Octal Upload
+; Run:       from ODT prompt:  1000G
+
+        .= 001000
+
+XCSR    = 177564        ; console transmitter status — bit 7: ready
+XBUF    = 177566        ; console transmitter data buffer
+
+START:  MOV  #MSG, R0   ; R0 → message string
+LOOP:   MOVB (R0)+, R1  ; next byte → R1; advance pointer
+        BEQ  DONE       ; NUL terminator — stop
+WAIT:   TSTB @#XCSR     ; poll transmitter ready (bit 7)
+        BPL  WAIT
+        MOVB R1, @#XBUF ; write character to UART
+        BR   LOOP
+DONE:   HALT
+
+MSG:    .BYTE  15, 12, 15, 12  ; two CR+LF (blank line before output)
+        .ASCII /Hello World!/
+        .BYTE  15, 12, 0       ; CR, LF, NUL
+        .EVEN

@@ -1,0 +1,13 @@
+; blink.mac — toggle LED at I/O address 177564 in a counted loop
+        .= 001000           ; load at 1000 octal
+
+LEDREG  = 177564            ; octal I/O address
+COUNT   = ^D1000            ; decimal 1000 iterations
+
+START:  MOV #COUNT, R5
+LOOP:   COM @#LEDREG        ; complement LED register
+        SOB R5, LOOP
+        HALT
+
+        .END START
+
