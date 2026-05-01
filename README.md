@@ -100,8 +100,9 @@ WAIT:   TSTB @#XCSR     ; poll transmitter ready (bit 7)
         BR   LOOP
 DONE:   HALT
 
-MSG:    .ASCII /Hello World!/
-        .BYTE  15, 12, 0 ; CR, LF, NUL
+MSG:    .BYTE  15, 12, 15, 12  ; two CR+LF (blank line before output)
+        .ASCII /Hello World!/
+        .BYTE  15, 12, 0       ; CR, LF, NUL
         .EVEN
 ```
 
@@ -118,7 +119,7 @@ Symbol table:
   WAIT                    001010
   XBUF                    177566
   XCSR                    177564
-19 words → hello_world.oct
+21 words → hello_world.oct
 @001000
 012700
 001026
@@ -131,6 +132,8 @@ Symbol table:
 177566
 000770
 000000
+005015
+005015
 062510
 066154
 020157
@@ -141,7 +144,7 @@ Symbol table:
 000000
 ```
 
-After loading and typing `1000G` at the ODT prompt, `Hello World!` followed by CR+LF
+After loading and typing `1000G` at the ODT prompt, a blank line followed by `Hello World!`
 appears in the Terminal window and the processor halts. ODT resumes control.
 
 ---
