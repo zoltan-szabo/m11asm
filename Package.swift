@@ -4,6 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "m11asm",
+    products: [
+        .library(name: "m11asmCore", targets: ["m11asmCore"]),
+    ],
     targets: [
         .executableTarget(
             name: "m11asm",

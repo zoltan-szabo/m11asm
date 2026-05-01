@@ -7,7 +7,7 @@ public func writeBinary(bytes: [UInt8], to path: String) throws {
     try Data(bytes).write(to: URL(fileURLWithPath: path))
 }
 
-/// Write an octal load file in self-contained `@address / word-per-line` format.
+/// Return an octal load string in self-contained `@address / word-per-line` format.
 ///
 /// Format:
 /// ```
@@ -18,7 +18,7 @@ public func writeBinary(bytes: [UInt8], to path: String) throws {
 /// ```
 /// The `@address` line sets the load origin; subsequent lines are 16-bit data
 /// words in little-endian memory order, one per line, in 6-digit octal.
-public func writeOctalLoad(bytes: [UInt8], origin: UInt16, to path: String) throws {
+public func octalLoadString(bytes: [UInt8], origin: UInt16) -> String {
     var lines: [String] = [String(format: "@%06o", origin)]
     var i = 0
     while i < bytes.count {
@@ -27,6 +27,10 @@ public func writeOctalLoad(bytes: [UInt8], origin: UInt16, to path: String) thro
         lines.append(String(format: "%06o", lo | (hi << 8)))
         i += 2
     }
-    let content = lines.joined(separator: "\n") + "\n"
-    try content.write(toFile: path, atomically: true, encoding: .ascii)
+    return lines.joined(separator: "\n") + "\n"
+}
+
+/// Write an octal load file to disk.
+public func writeOctalLoad(bytes: [UInt8], origin: UInt16, to path: String) throws {
+    try octalLoadString(bytes: bytes, origin: origin).write(toFile: path, atomically: true, encoding: .ascii)
 }
