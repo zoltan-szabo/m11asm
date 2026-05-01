@@ -5,6 +5,8 @@ Produces raw binary or octal load files suitable for loading into a PDP-11 syste
 or an absolute loader. Designed for bare-metal DCJ-11 development and for integration with
 [J11Terminal](https://github.com/zoltan-szabo/j11-terminal).
 
+Originally built for the [DCJ11 Single Board Computer v1.3.2](https://www.5volts.ch/pages/dcj11sbc/) by Peter Schranz.
+
 ---
 
 ## Installation
