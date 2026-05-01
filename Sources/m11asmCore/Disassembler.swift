@@ -12,14 +12,14 @@ public struct DisassembledInstruction: Sendable {
     /// Columns: address  w0  w1  w2  mnemonic  operands
     /// Blank word columns are padded with spaces for alignment.
     public var listingLine: String {
-        let a  = String(format: "%06o", address)
+        let a  = String(format: "%08o", address)
         let w0 = String(format: "%06o", words[0])
         let w1 = words.count > 1 ? String(format: "%06o", words[1]) : "      "
         let w2 = words.count > 2 ? String(format: "%06o", words[2]) : "      "
         let mn = mnemonic.padding(toLength: 6, withPad: " ", startingAt: 0)
         return operands.isEmpty
-            ? "\(a)/ \(w0)  \(w1)  \(w2)  \(mn)"
-            : "\(a)/ \(w0)  \(w1)  \(w2)  \(mn)  \(operands)"
+            ? "\(a) \(w0)  \(w1)  \(w2)  \(mn)"
+            : "\(a) \(w0)  \(w1)  \(w2)  \(mn)  \(operands)"
     }
 }
 

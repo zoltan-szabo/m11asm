@@ -315,7 +315,7 @@ struct DisassemblerTests {
     @Test func listingLineOneWord() {
         let r = dis([0o010001])
         let line = r[0].listingLine
-        #expect(line.hasPrefix("001000/ "))
+        #expect(line.hasPrefix("00001000 "))
         #expect(line.contains("010001"))
         #expect(line.contains("MOV"))
         #expect(line.contains("R0, R1"))
