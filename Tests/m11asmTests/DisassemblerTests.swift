@@ -187,7 +187,7 @@ struct DisassemblerTests {
     }
 
     @Test func branchWithSymbol() {
-        let syms: [UInt16: String] = [0o1006: "LOOP"]
+        let syms: [UInt32: String] = [0o1006: "LOOP"]
         let r = disassemble(words: [0o000402], baseAddress: 0o1000, symbols: syms)
         #expect(r[0].operands == "LOOP")
     }
@@ -370,6 +370,35 @@ struct DisassemblerTests {
         let input = "; comment line\n001000/ 012700\n; another comment\n001002/ 000377\n"
         let (words, _) = parseODTInput(input)
         #expect(words == [0o012700, 0o000377])
+    }
+
+    // MARK: - 22-bit addressing
+
+    @Test func parseODT22BitAddress() {
+        let input = "17760000/ 012700\n17760002/ 000377\n"
+        let (words, base) = parseODTInput(input)
+        #expect(base == 0o17760000)
+        #expect(words == [0o012700, 0o000377])
+    }
+
+    @Test func parseOct22BitDirective() {
+        let (words, base) = parseODTInput("@17760000\n012700\n")
+        #expect(base == 0o17760000)
+        #expect(words == [0o012700])
+    }
+
+    @Test func disassemble22BitBase() {
+        // BR .-2 at 17760000: after opcode pc = 17760002, offset -2 → 17757776
+        let r = disassemble(words: [0o000776], baseAddress: 0o17760000)
+        #expect(r[0].address == 0o17760000)
+        #expect(r[0].mnemonic == "BR")
+        #expect(r[0].operands == "17757776")
+        #expect(r[0].listingLine.hasPrefix("17760000"))
+    }
+
+    @Test func targetsBelow16BitStay6Digits() {
+        let r = disassemble(words: [0o000776], baseAddress: 0o1000)
+        #expect(r[0].operands == "000776")
     }
 }
 

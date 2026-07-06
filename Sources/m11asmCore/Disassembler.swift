@@ -2,8 +2,11 @@
 
 // MARK: - Public Output Type
 
+/// Addresses are 22-bit physical (DCJ-11 ODT), carried in UInt32.
+public let odtAddressMask: UInt32 = 0o17777777
+
 public struct DisassembledInstruction: Sendable {
-    public let address:  UInt16
+    public let address:  UInt32
     public let words:    [UInt16]   // 1–3 words consumed
     public let mnemonic: String
     public let operands: String     // empty string for no-operand instructions
@@ -25,14 +28,14 @@ public struct DisassembledInstruction: Sendable {
 
 // MARK: - Disassemble
 
-/// Disassemble an array of 16-bit words starting at `baseAddress`.
+/// Disassemble an array of 16-bit words starting at `baseAddress` (22-bit physical).
 /// `symbols` maps addresses to label names used in branch/operand display.
 public func disassemble(words: [UInt16],
-                        baseAddress: UInt16,
-                        symbols: [UInt16: String] = [:]) -> [DisassembledInstruction] {
+                        baseAddress: UInt32,
+                        symbols: [UInt32: String] = [:]) -> [DisassembledInstruction] {
     var result: [DisassembledInstruction] = []
     var i  = 0
-    var pc = baseAddress
+    var pc = baseAddress & odtAddressMask
     while i < words.count {
         let startI  = i
         let instrPC = pc
@@ -59,9 +62,9 @@ public func disassemble(words: [UInt16],
 ///
 /// The first address seen becomes `baseAddress`; subsequent words are appended
 /// in order regardless of their ODT addresses.
-public func parseODTInput(_ text: String) -> (words: [UInt16], baseAddress: UInt16) {
+public func parseODTInput(_ text: String) -> (words: [UInt16], baseAddress: UInt32) {
     var words:     [UInt16] = []
-    var baseAddr:  UInt16   = 0o001000
+    var baseAddr:  UInt32   = 0o001000
     var foundAddr           = false
 
     for rawLine in text.components(separatedBy: .newlines) {
@@ -76,7 +79,7 @@ public func parseODTInput(_ text: String) -> (words: [UInt16], baseAddress: UInt
                 .trimmingCharacters(in: .whitespaces)
             let valStr = String(afterSlash.prefix(while: { "01234567".contains($0) }))
             if !valStr.isEmpty,
-               let addr = UInt16(addrPart, radix: 8),
+               let addr = UInt32(addrPart, radix: 8), addr <= odtAddressMask,
                let val  = UInt16(valStr,   radix: 8) {
                 if !foundAddr { baseAddr = addr; foundAddr = true }
                 words.append(val)
@@ -86,7 +89,7 @@ public func parseODTInput(_ text: String) -> (words: [UInt16], baseAddress: UInt
 
         // m11asm .oct address directive
         if line.hasPrefix("@") {
-            if let addr = UInt16(String(line.dropFirst()), radix: 8) {
+            if let addr = UInt32(String(line.dropFirst()), radix: 8), addr <= odtAddressMask {
                 baseAddr = addr; foundAddr = true
             }
             continue
@@ -170,11 +173,16 @@ private let decodeTable: [DecodeEntry] = {
 
 // MARK: - Core Decoder
 
+// Format a 22-bit address: 6 octal digits within the 16-bit range, 8 above it.
+private func fmtAddr(_ a: UInt32) -> String {
+    String(format: a > 0o177777 ? "%08o" : "%06o", a)
+}
+
 private func decodeWord(words: [UInt16], i: inout Int,
-                         pc: inout UInt16,
-                         symbols: [UInt16: String]) -> (String, String) {
+                         pc: inout UInt32,
+                         symbols: [UInt32: String]) -> (String, String) {
     let word = words[i]; i += 1
-    pc = pc &+ 2                        // pc now points past the opcode word
+    pc = (pc &+ 2) & odtAddressMask     // pc now points past the opcode word
 
     guard let entry = decodeTable.first(where: { (word & $0.mask) == $0.match }) else {
         return (".WORD", String(format: "%06o", word))
@@ -205,8 +213,8 @@ private func decodeWord(words: [UInt16], i: inout Int,
 
     case .branch:
         let off    = Int8(bitPattern: UInt8(word & 0xFF))
-        let target = pc &+ UInt16(bitPattern: Int16(off) &* 2)
-        return (mn, symbols[target] ?? String(format: "%06o", target))
+        let target = (pc &+ UInt32(bitPattern: Int32(off) &* 2)) & odtAddressMask
+        return (mn, symbols[target] ?? fmtAddr(target))
 
     case .jsr:
         let reg = Int((word >> 6) & 7)
@@ -221,8 +229,8 @@ private func decodeWord(words: [UInt16], i: inout Int,
     case .sob:
         let r      = Int((word >> 6) & 7)
         let offset = Int(word & 0o077)
-        let target = pc &- UInt16(offset * 2)
-        return (mn, "\(regName(r)), \(String(format: "%06o", target))")
+        let target = (pc &- UInt32(offset * 2)) & odtAddressMask
+        return (mn, "\(regName(r)), \(fmtAddr(target))")
 
     case .eisRegSrc:
         let r   = Int((word >> 6) & 7)
@@ -248,7 +256,7 @@ private func decodeWord(words: [UInt16], i: inout Int,
 // MARK: - Operand Decoder
 
 private func operand(field: UInt16, words: [UInt16], i: inout Int,
-                     extPC: inout UInt16, symbols: [UInt16: String]) -> String {
+                     extPC: inout UInt32, symbols: [UInt32: String]) -> String {
     let mode = Int((field >> 3) & 7)
     let r    = Int(field & 7)
     let rn   = regName(r)
@@ -265,7 +273,7 @@ private func operand(field: UInt16, words: [UInt16], i: inout Int,
     case 3:
         if r == 7 {
             let ext = nextWord(words, &i, &extPC)
-            return "@#\(symbols[ext] ?? String(format: "%06o", ext))"
+            return "@#\(symbols[UInt32(ext)] ?? String(format: "%06o", ext))"
         }
         return "@(\(rn))+"
     case 4: return "-(\(rn))"
@@ -274,15 +282,15 @@ private func operand(field: UInt16, words: [UInt16], i: inout Int,
         let ext = nextWord(words, &i, &extPC)
         if r == 7 {
             // EA = extPC (already advanced past extension word) + signedDisp
-            let target = extPC &+ UInt16(bitPattern: Int16(bitPattern: ext))
-            return symbols[target] ?? String(format: "%06o", target)
+            let target = (extPC &+ UInt32(bitPattern: Int32(Int16(bitPattern: ext)))) & odtAddressMask
+            return symbols[target] ?? fmtAddr(target)
         }
         return "\(String(format: "%06o", ext))(\(rn))"
     case 7:
         let ext = nextWord(words, &i, &extPC)
         if r == 7 {
-            let target = extPC &+ UInt16(bitPattern: Int16(bitPattern: ext))
-            return "@\(symbols[target] ?? String(format: "%06o", target))"
+            let target = (extPC &+ UInt32(bitPattern: Int32(Int16(bitPattern: ext)))) & odtAddressMask
+            return "@\(symbols[target] ?? fmtAddr(target))"
         }
         return "@\(String(format: "%06o", ext))(\(rn))"
     default:
@@ -291,9 +299,9 @@ private func operand(field: UInt16, words: [UInt16], i: inout Int,
 }
 
 // Consume one extension word, advancing i and extPC.
-private func nextWord(_ words: [UInt16], _ i: inout Int, _ extPC: inout UInt16) -> UInt16 {
+private func nextWord(_ words: [UInt16], _ i: inout Int, _ extPC: inout UInt32) -> UInt16 {
     guard i < words.count else { return 0 }
-    let w = words[i]; i += 1; extPC = extPC &+ 2
+    let w = words[i]; i += 1; extPC = (extPC &+ 2) & odtAddressMask
     return w
 }
 
