@@ -1,4 +1,4 @@
-name: Bug report
+name: m11asm bug report
 description: Wrong encoding, assembly error, or crash
 labels: [bug]
 body:
@@ -22,7 +22,7 @@ body:
     attributes:
       label: Minimal .mac source that reproduces the problem
       description: Trim it down as far as you can — a handful of lines is ideal.
-      render: asm
+      render: text
     validations:
       required: true
   - type: textarea
