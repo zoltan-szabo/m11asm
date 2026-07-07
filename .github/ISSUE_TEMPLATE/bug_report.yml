@@ -1,0 +1,41 @@
+name: Bug report
+description: Wrong encoding, assembly error, or crash
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: m11asm version
+      description: Commit hash or release tag (and how you installed it).
+      placeholder: e.g. e6ce88d, built from source
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command line
+      placeholder: m11asm -b 1000 program.mac
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal .mac source that reproduces the problem
+      description: Trim it down as far as you can — a handful of lines is ideal.
+      render: asm
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: The octal words / listing you expected (cite the MACRO-11 manual if relevant).
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: The octal output, error message, or crash you got instead.
+    validations:
+      required: true
