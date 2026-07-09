@@ -24,11 +24,11 @@
 VIAORB  = 174000        ; VIA ORB/IRB — port B data register
 VIADDRB = 174004        ; VIA DDRB — direction, 1 bit = output
 
-; Delay tuning for ~30 ms per step, calibrated for the 6 MHz crystal.
-; Total delay = OUTER * INNER SOB loops (~1.5 us each at 6 MHz).
+; Delay tuning for ~30 ms per step, calibrated for the 18 MHz crystal.
+; Total delay = OUTER * INNER SOB loops (~0.5 us each at 18 MHz).
 ; Runs too slow/fast? Adjust OUTER (coarse) or INNER (fine).
-; Other crystals: scale up proportionally (10 MHz -> OUTER = ^D5).
-OUTER   = ^D3
+; Other crystals: scale proportionally (10 MHz -> OUTER = ^D5, 6 MHz -> ^D3).
+OUTER   = ^D9
 INNER   = ^D6875
 
 START:  MOV  #1000, SP          ; stack grows down below the code
