@@ -19,44 +19,44 @@
 ; Load:      paste knight_rider.oct into J11Terminal Octal Upload
 ; Run:       from ODT prompt:  1000G
 
-        .= 001000
+.	= 001000
 
-VIAORB  = 174000        ; VIA ORB/IRB — port B data register
-VIADDRB = 174004        ; VIA DDRB — direction, 1 bit = output
+VIAORB	= 174000		; VIA ORB/IRB — port B data register
+VIADDRB	= 174004		; VIA DDRB — direction, 1 bit = output
 
 ; Delay tuning for ~15 ms per step, calibrated for the 15 MHz crystal.
 ; Total delay = OUTER * INNER SOB loops (~0.6 us each at 15 MHz).
 ; Runs too slow/fast? Adjust OUTER (coarse) or INNER (fine).
 ; Other crystals: scale proportionally (18 MHz -> ^D9, 10 MHz -> ^D5, 6 MHz -> ^D3).
-OUTER   = ^D7
-INNER   = ^D3437
+OUTER	= ^D7
+INNER	= ^D3437
 
-START:  MOV  #1000, SP          ; stack grows down below the code
-        MOV  #377, @#VIADDRB    ; all of port B = outputs
-CYCLE:  MOV  #TABLE, R4         ; R4 walks the pattern table
-LOOP:   MOVB (R4)+, R0          ; next LED mask (0 = end of table)
-        BEQ  CYCLE              ; wrap around, sweep forever
-        JSR  PC, SHOW
-        BR   LOOP
+START:	MOV	#1000, SP	; stack grows down below the code
+	MOV	#377, @#VIADDRB	; all of port B = outputs
+CYCLE:	MOV	#TABLE, R4	; R4 walks the pattern table
+LOOP:	MOVB	(R4)+, R0	; next LED mask (0 = end of table)
+	BEQ	CYCLE		; wrap around, sweep forever
+	JSR	PC, SHOW
+	BR	LOOP
 
 ; Light the LEDs for the mask in R0 (active low), then delay ~15 ms.
 ; Only the low byte reaches the VIA, so MOVB sign extension is harmless.
-SHOW:   COM  R0                 ; invert: 0 bit = LED on
-        MOV  R0, @#VIAORB
-        MOV  #OUTER, R1
-DLYO:   MOV  #INNER, R2
-DLYI:   SOB  R2, DLYI
-        SOB  R1, DLYO
-        RTS  PC
+SHOW:	COM	R0		; invert: 0 bit = LED on
+	MOV	R0, @#VIAORB
+	MOV	#OUTER, R1
+DLYO:	MOV	#INNER, R2
+DLYI:	SOB	R2, DLYI
+	SOB	R1, DLYO
+	RTS	PC
 
 ; One full sweep. Masks are what you SEE (1 bit = lit LED).
-TABLE:  .BYTE 001, 003, 007             ; grow out of PB0
-        .BYTE 016, 034, 070, 160, 340   ; slide up to PB7
-        .BYTE 300, 200                  ; compress into PB7
-        .BYTE 300, 340                  ; grow back out of PB7
-        .BYTE 160, 070, 034, 016, 007   ; slide down to PB0
-        .BYTE 003                       ; compress into PB0 (001 restarts)
-        .BYTE 0                         ; end marker
-        .EVEN
+TABLE:	.BYTE	001, 003, 007	; grow out of PB0
+	.BYTE	016, 034, 070, 160, 340; slide up to PB7
+	.BYTE	300, 200	; compress into PB7
+	.BYTE	300, 340	; grow back out of PB7
+	.BYTE	160, 070, 034, 016, 007; slide down to PB0
+	.BYTE	003		; compress into PB0 (001 restarts)
+	.BYTE	0		; end marker
+	.EVEN
 
-        .END START
+	.END	START
