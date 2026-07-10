@@ -44,9 +44,11 @@ public struct Lexer: Sendable {
         while true {
             let tok = try nextToken()
             result.append(tok)
-            // .ASCII and .ASCIZ are followed by a delimited string at the character level.
-            // Inject a .stringLiteral token immediately so the parser sees it in the stream.
-            if case .symbol(let name) = tok.value, name == ".ASCII" || name == ".ASCIZ" {
+            // .ASCII, .ASCIZ and .INCLUDE are followed by a delimited string at the
+            // character level. Inject a .stringLiteral token immediately so the
+            // parser (or the include expander) sees it in the stream.
+            if case .symbol(let name) = tok.value,
+               name == ".ASCII" || name == ".ASCIZ" || name == ".INCLUDE" {
                 while peek() == " " || peek() == "\t" { advance() }
                 let strLoc = currentLocation
                 let bytes = try readDelimitedString()

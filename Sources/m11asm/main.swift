@@ -121,9 +121,15 @@ var diag = DiagnosticEngine()
 let tokens: [Located<Token>]
 do {
     var lexer = Lexer(source: source, filename: args.inputPath)
-    tokens = try lexer.tokenize()
+    let raw = try lexer.tokenize()
+    tokens = try IncludeExpander.expand(
+        tokens: raw,
+        baseDirectory: URL(fileURLWithPath: args.inputPath).deletingLastPathComponent())
 } catch let e as LexError {
     err(e.description)
+    exit(1)
+} catch let e as IncludeError {
+    err("m11asm: \(e.description)")
     exit(1)
 } catch {
     err("m11asm: lex error: \(error)")
