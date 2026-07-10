@@ -11,7 +11,11 @@ private func err(_ msg: String) {
 
 // MARK: - Help
 
+private let versionLine = "m11asm \(m11asmVersion)"
+
 private let usage = """
+\(versionLine) — MACRO-11 assembler for DCJ-11 / PDP-11
+
 USAGE: m11asm [options] <input.mac>
 
 OPTIONS:
@@ -19,6 +23,7 @@ OPTIONS:
   -f bin|oct    Output format — raw binary or octal load file (default: oct)
   -b <addr>     Base (load) address in octal (default: 001000)
   --symbols     Print symbol table to stdout after assembly
+  -v, --version Show version and exit
   -h, --help    Show this help
 
 OUTPUT FORMATS:
@@ -50,6 +55,9 @@ private func parseArgs() -> CLIArgs {
         switch arg {
         case "-h", "--help":
             print(usage)
+            exit(0)
+        case "-v", "--version":
+            print(versionLine)
             exit(0)
         case "-o":
             i += 1

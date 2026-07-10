@@ -108,6 +108,10 @@ Repository: `github.com/zoltan-szabo/m11asm`
 
 | Commit | What was done |
 |--------|---------------|
+| `v0.3.0` | Release: `.INCLUDE`, `-v/--version`, 22-bit disassembler addressing, knight_rider example, DEC tab grid in examples. See HISTORY.md |
+| `49e5221` | `.INCLUDE` file reading via a caller-supplied closure (sandboxed hosts grant folder access); `IncludeError.init` made public |
+| `efdd6d7` | `.INCLUDE /file/` directive: `IncludeExpander` runs between lexer and macro expander, resolves relative to the including file, nests to 16 levels; lexer injects the delimited path as `.stringLiteral`; 4 tests |
+| `4343daa` | 22-bit physical addresses in `Disassembler.swift` — `UInt32` addresses masked to 22 bits throughout (`DisassembledInstruction`, `disassemble`, `parseODTInput`, `symbols` keys); an ODT fetch above 177777 previously failed to parse entirely |
 | `86e1843` | Project scaffolding: Swift package with `m11asm` executable + `m11asmCore` library, git init, CLAUDE.md |
 | `8285f87` | Phase 1 — Lexer (octal default, `^D`/`^B`/`^X` prefixes, `.ASCII`/`.ASCIZ` string injection), Expression AST + recursive-descent evaluator, SymbolTable, DiagnosticEngine; 66 tests |
 | `be499de` | Phase 2 — InstructionTable (all PDP-11 formats + DCJ-11 extensions), OperandMode 12-case encoder (6-bit field + optional extension word), ExpressionParser (TokenStream), OperandParser; 136 tests |

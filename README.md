@@ -161,6 +161,7 @@ OPTIONS:
   -f bin|oct    Output format (default: oct)
   -b <addr>     Base (load) address in octal (default: 001000)
   --symbols     Print symbol table to stdout after assembly
+  -v, --version Show version and exit
   -h, --help    Show help
 
 EXIT CODES:
@@ -250,7 +251,30 @@ Left-to-right evaluation; parentheses override:
 | `. = expr` | set location counter |
 | `sym = expr` | equate (reassignable) |
 | `sym == expr` | equate (permanent) |
+| `.INCLUDE /file/` | assemble another source file in place |
 | `.END [addr]` | end of source |
+
+#### `.INCLUDE`
+
+Splices another source file into the token stream, so a driver can live
+in its own file and be shared by several programs:
+
+```
+	JSR	PC, LCDINI	; routine defined in the included file
+	HALT
+
+	.INCLUDE /dm8ba10.mac/
+
+	.END	START
+```
+
+- The file name is delimited like `.ASCII` — the character right after
+  the directive is the delimiter, so a path containing `/` needs a
+  different one: `.INCLUDE "lib/dm8ba10.mac"`.
+- Relative names resolve against the directory of the *including* file,
+  so nested includes work from subdirectories.
+- Includes may nest up to 16 levels; diagnostics report the included
+  file's own name and line numbers.
 
 ### Conditional assembly
 
@@ -344,11 +368,10 @@ All standard PDP-11 instructions are supported, plus the DCJ-11 (J-11) extension
 
 ---
 
-## Not supported (out of scope for v0.1)
+## Not supported
 
 - `.IFF` / `.IFTF` (else/always branches in conditionals)
 - `.IRPC` (character-by-character iteration)
-- `.INCLUDE` (file inclusion)
 - `.PSECT` / `.CSECT` (program sections)
 - `.GLOBL` / `.EXTERNAL` (external linking)
 - `.NARG` / `.NCHR` (macro argument utilities)
