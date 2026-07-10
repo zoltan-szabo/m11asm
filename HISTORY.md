@@ -2,6 +2,16 @@
 
 Release notes. Commit messages stay short; the detail lives here.
 
+## v0.4.1 (2026-07-10)
+
+- **`SymbolFile`** — reader for the `.sym` files `--symbol-file` writes.
+  Parses name, octal value and optional type; skips comments and malformed
+  lines. `SymbolFile.parse` returns an address→name map for
+  `disassemble(symbols:)`: labels win over equates at the same address and
+  ties break alphabetically, so the map does not depend on file order.
+  Library-only addition; the CLI is unchanged. Used by J11Terminal's
+  disassembler to print `JSR PC, LCDINI` and `@#VIAORA` instead of octal.
+
 ## v0.4.0 (2026-07-10)
 
 - **`-l` / `--listing`** — assembly listing (`<input>.lst`) in the
