@@ -36,13 +36,23 @@ public enum SymbolFile {
     }
 
     /// Address → name, for `disassemble(symbols:)`.
-    ///
+    public static func parse(_ text: String) -> [UInt32: String] {
+        map(parseEntries(text))
+    }
+
+    /// Same mapping, straight from an assembled program's symbol table — so a
+    /// tool that just assembled the code needs no `.sym` file (and cannot use
+    /// a stale one).
+    public static func map(_ symbols: SymbolTable) -> [UInt32: String] {
+        map(symbols.definedWithKind.map { Entry(name: $0.name, value: $0.value, kind: $0.kind) })
+    }
+
     /// Several symbols can share a value (a label and an equate, say). Labels
     /// win, because they name code and data the disassembler is walking;
-    /// ties break alphabetically so the result is deterministic.
-    public static func parse(_ text: String) -> [UInt32: String] {
+    /// ties break alphabetically so the result never depends on input order.
+    public static func map(_ entries: [Entry]) -> [UInt32: String] {
         var best: [UInt32: Entry] = [:]
-        for entry in parseEntries(text) {
+        for entry in entries {
             let key = UInt32(entry.value)
             guard let current = best[key] else { best[key] = entry; continue }
             if preferred(entry, over: current) { best[key] = entry }

@@ -56,6 +56,21 @@ import Testing
         #expect(disassemble(words: [0o000776], baseAddress: 0o1000)[0].operands == "000776")
     }
 
+    /// The in-memory path (an assembled program) and the file path must
+    /// produce the same map, including the label-beats-equate rule.
+    @Test func mapFromSymbolTableMatchesParsedFile() {
+        var symbols = SymbolTable()
+        symbols.define("VIAORA", value: 0o174002, kind: .directAssign)
+        symbols.define("PORTA",  value: 0o174002, kind: .label)
+        symbols.define("START",  value: 0o1000,   kind: .label)
+
+        let fromTable = SymbolFile.map(symbols)
+        let fromFile  = SymbolFile.parse(Listing.symbolFileText(symbols, source: "t.mac"))
+        #expect(fromTable == fromFile)
+        #expect(fromTable[0o174002] == "PORTA")
+        #expect(fromTable[0o1000] == "START")
+    }
+
     @Test func roundTripsWithSymbolFileText() {
         var symbols = SymbolTable()
         symbols.define("START", value: 0o1000, kind: .label)
