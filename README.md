@@ -18,6 +18,17 @@ brew tap zoltan-szabo/m11asm
 brew install m11asm
 ```
 
+Check which version you have, and upgrade to the latest release:
+
+```bash
+m11asm --version          # e.g. m11asm 0.3.0
+brew update && brew upgrade m11asm
+```
+
+`brew update` refreshes the tap; without it Homebrew keeps offering the
+version it already knows about. Features are gated on the version — for
+example `.INCLUDE` needs 0.3.0 or later.
+
 ### From source
 
 Requires Xcode 16 or the Swift 6 toolchain.
