@@ -5,19 +5,29 @@
 // (lexed with its own filename, so diagnostics point at the right
 // source). Paths are resolved relative to the including file; includes
 // nest up to a fixed depth.
+//
+// File reading goes through a caller-supplied closure so that sandboxed
+// hosts (J11Terminal) can grant access to the enclosing folder before
+// the read; the default reader just reads from disk.
 
 import Foundation
 
 public struct IncludeError: Error, CustomStringConvertible {
     public let description: String
-    init(_ s: String) { description = s }
+    public init(_ s: String) { description = s }
 }
 
 public enum IncludeExpander {
     public static let maxDepth = 16
 
+    /// Default reader: plain disk read.
+    public static func diskReader(_ url: URL) throws -> String {
+        try String(contentsOf: url, encoding: .utf8)
+    }
+
     public static func expand(tokens: [Located<Token>],
                               baseDirectory: URL?,
+                              read: (URL) throws -> String = IncludeExpander.diskReader,
                               depth: Int = 0) throws -> [Located<Token>] {
         guard depth < maxDepth else {
             throw IncludeError(".INCLUDE nesting exceeds \(maxDepth) levels")
@@ -35,13 +45,19 @@ public enum IncludeExpander {
                 let url: URL = name.hasPrefix("/")
                     ? URL(fileURLWithPath: name)
                     : (baseDirectory ?? URL(fileURLWithPath: ".")).appendingPathComponent(name)
-                guard let source = try? String(contentsOf: url, encoding: .utf8) else {
+                let source: String
+                do {
+                    source = try read(url)
+                } catch let e as IncludeError {
+                    throw e
+                } catch {
                     throw IncludeError("\(tok.location): cannot read included file \(url.path)")
                 }
                 var lexer = Lexer(source: source, filename: name)
                 let inner = try lexer.tokenize()
                 let expanded = try expand(tokens: inner.filter { $0.value != .eof },
                                           baseDirectory: url.deletingLastPathComponent(),
+                                          read: read,
                                           depth: depth + 1)
                 out.append(contentsOf: expanded)
                 // ensure statement separation after the spliced file
