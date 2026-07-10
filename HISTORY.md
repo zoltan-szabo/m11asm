@@ -2,6 +2,29 @@
 
 Release notes. Commit messages stay short; the detail lives here.
 
+## v0.4.0 (2026-07-10)
+
+- **`-l` / `--listing`** — assembly listing (`<input>.lst`) in the
+  line-printer format of the *PDP-11 MACRO-11 Language Reference Manual*
+  (AA-KX10A-TC), Figure 6-1: decimal line number, 6-digit octal location
+  counter, generated words (3-digit octal bytes for `.BYTE`/`.ASCII`/
+  `.ASCIZ`/`.EVEN`), then the source line; more than three values continue
+  on the next line with blank number and address columns. Page headers
+  carry title, assembler version, day/date/time and page number per
+  Section 6.1. `.INCLUDE`d files are listed in place. The symbol table is
+  appended, `=` marking direct assignments.
+- **`--symbol-file`** — machine-readable symbol table (`<input>.sym`).
+  MACRO-11 has no separate symbol file (the table lives in the listing;
+  `.STB` is a Task Builder product, `.MAP` a linker product), so this is an
+  m11asm extension intended for the J11Terminal disassembler.
+- Internals: `assembleWithItems` reports the bytes each source item emitted;
+  `SymbolTable` records whether a symbol came from a label or a direct
+  assignment; `SourceCollector` captures the text of `.INCLUDE`d files.
+
+Limitations: a listing is written only on successful assembly, and macro
+expansions are listed against the macro definition's lines because m11asm
+expands macros before parsing.
+
 ## v0.3.0 (2026-07-10)
 
 - **`.INCLUDE /file/`** — assemble another source file in place. Names

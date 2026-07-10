@@ -17,6 +17,15 @@ public struct IncludeError: Error, CustomStringConvertible {
     public init(_ s: String) { description = s }
 }
 
+/// Collects the text of every source file the expander reads, keyed by the
+/// name that appears in `SourceLocation.file`, so a listing can print the
+/// lines of included files too.
+public final class SourceCollector: @unchecked Sendable {
+    public private(set) var texts: [String: String] = [:]
+    public init() {}
+    public func record(_ name: String, _ text: String) { texts[name] = text }
+}
+
 public enum IncludeExpander {
     public static let maxDepth = 16
 
@@ -28,6 +37,7 @@ public enum IncludeExpander {
     public static func expand(tokens: [Located<Token>],
                               baseDirectory: URL?,
                               read: (URL) throws -> String = IncludeExpander.diskReader,
+                              collector: SourceCollector? = nil,
                               depth: Int = 0) throws -> [Located<Token>] {
         guard depth < maxDepth else {
             throw IncludeError(".INCLUDE nesting exceeds \(maxDepth) levels")
@@ -53,11 +63,13 @@ public enum IncludeExpander {
                 } catch {
                     throw IncludeError("\(tok.location): cannot read included file \(url.path)")
                 }
+                collector?.record(name, source)
                 var lexer = Lexer(source: source, filename: name)
                 let inner = try lexer.tokenize()
                 let expanded = try expand(tokens: inner.filter { $0.value != .eof },
                                           baseDirectory: url.deletingLastPathComponent(),
                                           read: read,
+                                          collector: collector,
                                           depth: depth + 1)
                 out.append(contentsOf: expanded)
                 // ensure statement separation after the spliced file

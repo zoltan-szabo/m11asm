@@ -4,10 +4,42 @@
 
 /// Encode every item in `program` into a flat byte array (little-endian).
 /// Bytes are in address order starting at `program.origin`.
+/// One source item and the bytes it generated — the raw material of a
+/// MACRO-11 assembly listing.
+public struct EmittedItem: Sendable {
+    public let location: SourceLocation
+    public let address:  UInt16
+    public let bytes:    [UInt8]
+    /// True for `.BYTE` / `.ASCII` / `.ASCIZ`, which list as 3-digit octal
+    /// bytes rather than 6-digit words.
+    public let isByteData: Bool
+}
+
 public func assemble(program: ParsedProgram,
                      diagnostics: inout DiagnosticEngine) -> [UInt8] {
+    assembleWithItems(program: program, diagnostics: &diagnostics).bytes
+}
+
+/// Assemble, additionally reporting what each source item emitted.
+public func assembleWithItems(program: ParsedProgram,
+                              diagnostics: inout DiagnosticEngine)
+    -> (bytes: [UInt8], items: [EmittedItem]) {
     var bytes: [UInt8] = []
+    var emitted: [EmittedItem] = []
     for item in program.items {
+        let start = bytes.count
+        let loc: SourceLocation
+        let addr: UInt16
+        var byteData = false
+        switch item {
+        case .instruction(let s): loc = s.location; addr = s.address
+        case .directive(let d):
+            loc = d.location; addr = d.address
+            switch d.kind {
+            case .byte, .ascii, .even: byteData = true   // listed as octal bytes
+            default: break
+            }
+        }
         do {
             switch item {
             case .instruction(let stmt):
@@ -18,14 +50,12 @@ public func assemble(program: ParsedProgram,
         } catch let e as CodeGenError {
             diagnostics.error(at: e.location, e.message)
         } catch {
-            let loc: SourceLocation
-            if case .instruction(let s) = item { loc = s.location }
-            else if case .directive(let d) = item { loc = d.location }
-            else { loc = .unknown }
             diagnostics.error(at: loc, error.localizedDescription)
         }
+        emitted.append(EmittedItem(location: loc, address: addr,
+                                   bytes: Array(bytes[start...]), isByteData: byteData))
     }
-    return bytes
+    return (bytes, emitted)
 }
 
 // MARK: - Internal error type

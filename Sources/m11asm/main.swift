@@ -23,6 +23,8 @@ OPTIONS:
   -f bin|oct    Output format — raw binary or octal load file (default: oct)
   -b <addr>     Base (load) address in octal (default: 001000)
   --symbols     Print symbol table to stdout after assembly
+  -l, --listing Write an assembly listing to <input>.lst
+  --symbol-file Write a machine-readable symbol table to <input>.sym
   -v, --version Show version and exit
   -h, --help    Show this help
 
@@ -44,6 +46,8 @@ private struct CLIArgs {
     var format:     String = "oct"
     var origin:     UInt16 = 0o001000
     var symbols:    Bool   = false
+    var listing:    Bool   = false
+    var symbolFile: Bool   = false
 }
 
 private func parseArgs() -> CLIArgs {
@@ -82,6 +86,10 @@ private func parseArgs() -> CLIArgs {
             a.origin = val
         case "--symbols":
             a.symbols = true
+        case "-l", "--listing":
+            a.listing = true
+        case "--symbol-file":
+            a.symbolFile = true
         default:
             if arg.hasPrefix("-") {
                 err("m11asm: unknown option '\(arg)'")
@@ -126,13 +134,17 @@ let outputPath: String = args.outputPath.isEmpty
 // Pipeline: lex → expand → parse → assemble
 var diag = DiagnosticEngine()
 
+let collector = SourceCollector()
+collector.record(args.inputPath, source)
+
 let tokens: [Located<Token>]
 do {
     var lexer = Lexer(source: source, filename: args.inputPath)
     let raw = try lexer.tokenize()
     tokens = try IncludeExpander.expand(
         tokens: raw,
-        baseDirectory: URL(fileURLWithPath: args.inputPath).deletingLastPathComponent())
+        baseDirectory: URL(fileURLWithPath: args.inputPath).deletingLastPathComponent(),
+        collector: collector)
 } catch let e as LexError {
     err(e.description)
     exit(1)
@@ -148,7 +160,7 @@ var expander = MacroExpander()
 let expanded = expander.expand(tokens: tokens, diagnostics: &diag)
 
 let program = parse(tokens: expanded, origin: args.origin, diagnostics: &diag)
-let bytes   = assemble(program: program, diagnostics: &diag)
+let (bytes, emittedItems) = assembleWithItems(program: program, diagnostics: &diag)
 
 // Report diagnostics
 diag.printAll()
@@ -157,6 +169,38 @@ if diag.hasErrors {
     let n = diag.errorCount
     err("m11asm: \(n) error\(n == 1 ? "" : "s") — no output written")
     exit(1)
+}
+
+// Listing and symbol file
+let baseName = URL(fileURLWithPath: args.inputPath).deletingPathExtension().path
+
+if args.listing {
+    let text = Listing.text(mainFile: args.inputPath,
+                            sources: collector.texts,
+                            program: program,
+                            emitted: emittedItems,
+                            errorCount: diag.errorCount,
+                            version: m11asmVersion)
+    let path = baseName + ".lst"
+    do {
+        try text.write(toFile: path, atomically: true, encoding: .utf8)
+        print("listing → \(path)")
+    } catch {
+        err("m11asm: cannot write \(path): \(error.localizedDescription)")
+        exit(1)
+    }
+}
+
+if args.symbolFile {
+    let text = Listing.symbolFileText(program.symbols, source: args.inputPath)
+    let path = baseName + ".sym"
+    do {
+        try text.write(toFile: path, atomically: true, encoding: .utf8)
+        print("symbols → \(path)")
+    } catch {
+        err("m11asm: cannot write \(path): \(error.localizedDescription)")
+        exit(1)
+    }
 }
 
 // Symbol table

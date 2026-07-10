@@ -170,7 +170,7 @@ public func parse(tokens: [Located<Token>],
             do {
                 let val = try parseExpression(stream: &stream)
                                 .evaluate(symbols: symbols, locationCounter: lc)
-                symbols.define(name, value: val)
+                symbols.define(name, value: val, kind: .directAssign)
             } catch {
                 diagnostics.error(at: lineLoc, "cannot evaluate equate '\(name)': \(error)")
             }
@@ -181,7 +181,7 @@ public func parse(tokens: [Located<Token>],
 
         if case .symbol(let name) = stream.peek(), stream.peek(1) == .colon {
             stream.consume(); stream.consume()
-            symbols.define(name, value: lc)
+            symbols.define(name, value: lc, kind: .label)
         }
 
         // Label-only line

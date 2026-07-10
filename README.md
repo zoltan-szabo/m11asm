@@ -172,6 +172,8 @@ OPTIONS:
   -f bin|oct    Output format (default: oct)
   -b <addr>     Base (load) address in octal (default: 001000)
   --symbols     Print symbol table to stdout after assembly
+  -l, --listing Write an assembly listing to <input>.lst
+  --symbol-file Write a machine-readable symbol table to <input>.sym
   -v, --version Show version and exit
   -h, --help    Show help
 
@@ -199,6 +201,54 @@ Human-readable and compatible with J11Terminal's Octal Upload window:
 Flat binary image at the base address. The caller must know the load address.
 
 ---
+
+## Listing and symbol output
+
+`-l` writes a MACRO-11 style assembly listing next to the input:
+
+```
+hello.mac  m11asm 0.4.0  FRI 10-JUL-26 17:00:53  Page 1
+
+    1                               ; hello.mac — DM8BA10 example
+   10                               .	= 001000
+   12 001000  012706  001000          START:	MOV	#1000, SP
+   13 001004  004767  000040          	JSR	PC, LCDINI
+   19 001036  110  145  154           MSG:	.ASCIZ	/Hello/
+
+SYMBOL TABLE
+
+LCDINI    001050      MSG       001036      ON      = 000001
+START     001000
+
+ERRORS DETECTED: 0
+```
+
+The format follows the *PDP-11 MACRO-11 Language Reference Manual*
+(AA-KX10A-TC), Figure 6-1 — line number, 6-digit octal location counter,
+the generated words (3-digit octal bytes for `.BYTE`/`.ASCII`/`.ASCIZ`),
+then the source line. Statements generating more than three values continue
+on the following line. Lines that generate no code show no address.
+`.INCLUDE`d files are listed in place, and the symbol table is appended,
+with `=` marking direct assignments (`sym = expr`) as MACRO-11 does.
+
+### Symbol files
+
+MACRO-11 itself has **no separate symbol file** — the symbol table is a
+section at the end of the listing (a `.STB` comes from the RSX Task Builder
+and a `.MAP` from the linker, neither of which applies to an absolute
+assembler). `--symbol-file` is therefore an m11asm extension: a simple,
+machine-readable table for tools such as the J11Terminal disassembler.
+
+```
+; m11asm symbol file — hello.mac
+; name value(octal) type
+START 001000 label
+ON 000001 equate
+```
+
+Current limitations: a listing is written only when assembly succeeds, and
+macro expansions are listed against the lines of the macro *definition*
+(m11asm expands macros before parsing).
 
 ## Language support
 
@@ -388,9 +438,9 @@ All standard PDP-11 instructions are supported, plus the DCJ-11 (J-11) extension
 - `.NARG` / `.NCHR` (macro argument utilities)
 - `.RAD50` (Radix-50 encoding)
 - `.DECIMAL` / `.OCTAL` (runtime radix switching)
+- Listing control directives (`.LIST`, `.NLIST`, `.TITLE`, `.SBTTL`, `.PAGE`)
 - Relocatable object files and linker
 - FPP (floating-point coprocessor) instructions
-- Listing output
 
 ---
 
