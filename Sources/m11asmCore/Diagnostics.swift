@@ -12,6 +12,14 @@ public struct Diagnostic: Sendable, CustomStringConvertible {
     public let location: SourceLocation
     public let message:  String
 
+    /// Embedders (J11Terminal) build diagnostics for errors raised outside the
+    /// assembler stages, such as a failed `.INCLUDE`.
+    public init(level: DiagnosticLevel, location: SourceLocation, message: String) {
+        self.level = level
+        self.location = location
+        self.message = message
+    }
+
     public var description: String {
         let tag = level == .error ? "error" : "warning"
         return "\(location): \(tag): \(message)"
