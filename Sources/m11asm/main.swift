@@ -24,6 +24,7 @@ OPTIONS:
   -b <addr>     Base (load) address in octal (default: 001000)
   --symbols     Print symbol table to stdout after assembly
   -l, --listing Write an assembly listing to <input>.lst
+  --continuous  With -l: no page breaks (continuous listing, no form feeds)
   --symbol-file Write a machine-readable symbol table to <input>.sym
   -v, --version Show version and exit
   -h, --help    Show this help
@@ -47,6 +48,7 @@ private struct CLIArgs {
     var origin:     UInt16 = 0o001000
     var symbols:    Bool   = false
     var listing:    Bool   = false
+    var continuous: Bool   = false
     var symbolFile: Bool   = false
 }
 
@@ -88,6 +90,8 @@ private func parseArgs() -> CLIArgs {
             a.symbols = true
         case "-l", "--listing":
             a.listing = true
+        case "--continuous":
+            a.continuous = true
         case "--symbol-file":
             a.symbolFile = true
         default:
@@ -180,7 +184,8 @@ if args.listing {
                             program: program,
                             emitted: emittedItems,
                             errorCount: diag.errorCount,
-                            version: m11asmVersion)
+                            version: m11asmVersion,
+                            paginated: !args.continuous)
     let path = baseName + ".lst"
     do {
         try text.write(toFile: path, atomically: true, encoding: .utf8)

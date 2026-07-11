@@ -89,6 +89,33 @@ private func build(_ source: String, file: String = "t.mac", origin: UInt16 = 0o
     }
 }
 
+@Suite struct ListingPagination {
+    /// A source long enough to spill onto a second page.
+    private func longListing(paginated: Bool) -> String {
+        let source = "START:\n" + String(repeating: "\tNOP\n", count: 80) + "\t.END START\n"
+        let (program, items, diag) = build(source)
+        return Listing.text(mainFile: "t.mac", sources: ["t.mac": source],
+                            program: program, emitted: items,
+                            errorCount: diag.errorCount, version: "test",
+                            timestamp: Date(timeIntervalSince1970: 0),
+                            paginated: paginated)
+    }
+
+    @Test func paginatedInsertsFormFeedsAndPageHeaders() {
+        let text = longListing(paginated: true)
+        #expect(text.contains("\u{0C}"))
+        #expect(text.contains("Page 2"))
+    }
+
+    @Test func continuousHasNoFormFeedsOrPageNumbers() {
+        let text = longListing(paginated: false)
+        #expect(!text.contains("\u{0C}"))
+        #expect(!text.contains("Page "))
+        // one header line still leads the listing
+        #expect(text.hasPrefix("t.mac  m11asm test"))
+    }
+}
+
 @Suite struct ListingIncludeOrder {
     @Test func includedLinesAppearAfterTheIncludeLine() {
         let main = "\tHALT\n.INCLUDE /lib.mac/\n"

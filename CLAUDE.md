@@ -108,6 +108,7 @@ Repository: `github.com/zoltan-szabo/m11asm`
 
 | Commit | What was done |
 |--------|---------------|
+| (continuous) | `Listing.text` gains `paginated:` (default true); false = one header, no form-feed page breaks — a continuous listing for screen reading. CLI `--continuous` (with `-l`). For J11Terminal's per-project listing toggle. 2 tests |
 | `v0.4.1` | `SymbolFile` reader for `.sym` (labels beat equates at equal addresses, alphabetical tiebreak); consumed by J11Terminal's disassembler |
 | `v0.4.0` | Assembly listing (`-l`, MACRO-11 Figure 6-1 format, includes spliced in place, symbol table appended) and `--symbol-file` (m11asm extension); `assembleWithItems`, `SymbolTable.Kind`, `SourceCollector` |
 | `v0.3.0` | Release: `.INCLUDE`, `-v/--version`, 22-bit disassembler addressing, knight_rider example, DEC tab grid in examples. See HISTORY.md |

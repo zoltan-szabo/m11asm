@@ -36,13 +36,17 @@ public enum Listing {
     ///   - mainFile: name of the top-level source, as it appears in `SourceLocation.file`
     ///   - sources: file name → full text, including every `.INCLUDE`d file
     ///   - timestamp: header date/time; pass a fixed date for reproducible output
+    ///   - paginated: DEC line-printer pagination (form-feed page breaks and a
+    ///     per-page header). When false, one header and a continuous body — no
+    ///     form feeds — for reading on a screen rather than a printer.
     public static func text(mainFile: String,
                             sources: [String: String],
                             program: ParsedProgram,
                             emitted: [EmittedItem],
                             errorCount: Int,
                             version: String,
-                            timestamp: Date = Date()) -> String {
+                            timestamp: Date = Date(),
+                            paginated: Bool = true) -> String {
         // Items keyed by source position; macro expansions and .REPT can put
         // several items on one line, so keep them queued in order.
         var byLine: [String: [EmittedItem]] = [:]
@@ -58,7 +62,8 @@ public enum Listing {
             body.append(contentsOf: render(lineNo: lineNo, source: text, items: items))
         }
 
-        var out = paginate(body, title: mainFile, version: version, timestamp: timestamp)
+        var out = paginate(body, title: mainFile, version: version,
+                           timestamp: timestamp, paginated: paginated)
         out += "\n" + symbolTableSection(program.symbols)
         out += "\nERRORS DETECTED: \(errorCount)\n"
         return out
@@ -151,11 +156,19 @@ public enum Listing {
     // MARK: - Pagination and header
 
     private static func paginate(_ body: [String], title: String,
-                                 version: String, timestamp: Date) -> String {
+                                 version: String, timestamp: Date,
+                                 paginated: Bool = true) -> String {
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "EEE dd-MMM-yy HH:mm:ss"
         let stamp = fmt.string(from: timestamp).uppercased()
+
+        // Continuous: a single header, then the whole body, no form feeds.
+        if !paginated {
+            var out = "\(title)  m11asm \(version)  \(stamp)\n\n"
+            if !body.isEmpty { out += body.joined(separator: "\n") + "\n" }
+            return out
+        }
 
         var out = ""
         var page = 1
